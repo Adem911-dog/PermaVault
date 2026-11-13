@@ -1,6 +1,6 @@
 {
-  "name": "GifHub",
-  "short_name": "GifHub",
+  "name": "PermaVault",
+  "short_name": "PermaVault",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
