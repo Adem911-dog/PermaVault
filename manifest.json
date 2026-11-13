@@ -1,10 +1,11 @@
 {
   "name": "PermaVault",
   "short_name": "PermaVault",
-  "start_url": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#0f1012",
+  "theme_color": "#0f1012",
   "icons": [
     {
       "src": "icon-192.png",
