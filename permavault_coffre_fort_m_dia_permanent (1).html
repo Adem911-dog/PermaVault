@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>PermaVault — Vos Photos & Vidéos Permanentes</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Police Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        vault: {
+                            bg: '#0f1012',       // Fond principal type YouTube/Discord ultra sombre
+                            surface: '#18191c',  // Cartes et modales
+                            elevated: '#23252a', // Survol et champs de saisie
+                            border: '#2e3138',   // Bordures subtiles
+                            accent: '#5865F2',   // Bleu Discord moderne
+                            accentHover: '#4752C4',
+                            danger: '#da373c',
+                            success: '#23a55a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Personnalisation de la barre de défilement et animations fluides */
+        body {
+            background-color: #0f1012;
+            color: #f2f3f5;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+
+        /* Barre de défilement discrète */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f1012;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2e3138;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #40444b;
+        }
+
+        /* Animations pour modales / tiroir mobile */
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.97); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-drawer {
+            animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @media (min-width: 640px) {
+            .animate-drawer {
+                animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+        }
+
+        /* Masquer la barre de défilement horizontale sur les filtres mobiles */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-vault-accent selection:text-white">
+
+    <!-- ================= EN-TÊTE (STICKY) ================= -->
+    <header class="sticky top-0 z-30 bg-vault-bg/85 backdrop-blur-xl border-b border-vault-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <!-- Logo & Titre -->
+            <div class="flex items-center gap-2.5 shrink-0">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-vault-accent to-indigo-400 flex items-center justify-center shadow-lg shadow-vault-accent/20">
+                    <i data-lucide="infinity" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white leading-none">PermaVault</h1>
+                    <p class="text-[11px] text-gray-400 hidden sm:block mt-0.5">Stockage local éternel</p>
+                </div>
+            </div>
+
+            <!-- Barre de recherche (Desktop) -->
+            <div class="hidden md:flex flex-1 max-w-md mx-4">
+                <div class="relative w-full">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input type="text" id="searchInputDesktop" placeholder="Rechercher un titre, une description..."
+                        class="w-full bg-vault-surface border border-vault-border focus:border-vault-accent rounded-full pl-10 pr-4 py-2 text-sm text-white placeholder-gray-400 outline-none transition">
+                </div>
+            </div>
+
+            <!-- Actions principales -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Bouton Sauvegarde / Restauration -->
+                <button id="openBackupBtn" title="Sauvegarder ou restaurer votre coffre"
+                    class="p-2.5 rounded-xl bg-vault-surface hover:bg-vault-elevated border border-vault-border text-gray-300 hover:text-white transition active:scale-95 flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-vault-success"></i>
+                    <span class="hidden lg:inline text-xs font-medium">Sauvegarde</span>
+                </button>
+
+                <!-- Bouton Publier (Desktop & Tablette) -->
+                <button id="openPublishBtnHeader"
+                    class="hidden sm:flex items-center gap-2 bg-vault-accent hover:bg-vault-accentHover text-white font-medium text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-vault-accent/25 transition active:scale-95">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Publier</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barre de recherche & Filtres rapides (Sous-en-tête optimisé mobile) -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 border-t border-vault-border/50 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+            <!-- Recherche Mobile -->
+            <div class="relative w-full md:hidden">
+                <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input type="text" id="searchInputMobile" placeholder="Rechercher dans vos médias..."
+                    class="w-full bg-vault-surface border border-vault-border focus:border-vault-accent rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-gray-400 outline-none transition">
+            </div>
+
+            <!-- Filtres -->
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5" id="filterContainer">
+                    <button data-filter="all" class="filter-btn active px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white text-black transition shrink-0">
+                        Tout <span id="countAll" class="ml-1 opacity-75">0</span>
+                    </button>
+                    <button data-filter="image" class="filter-btn px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-vault-surface text-gray-300 hover:bg-vault-elevated border border-vault-border transition shrink-0 flex items-center gap-1.5">
+                        <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                        Photos <span id="countImage" class="opacity-75">0</span>
+                    </button>
+                    <button data-filter="video" class="filter-btn px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-vault-surface text-gray-300 hover:bg-vault-elevated border border-vault-border transition shrink-0 flex items-center gap-1.5">
+                        <i data-lucide="video" class="w-3.5 h-3.5"></i>
+                        Vidéos <span id="countVideo" class="opacity-75">0</span>
+                    </button>
+                </div>
+
+                <!-- Indicateur d'espace utilisé (Desktop rapide) -->
+                <button id="openStorageQuickBtn" title="Voir les détails du stockage" class="hidden sm:flex items-center gap-2 text-xs text-gray-300 hover:text-white bg-vault-surface hover:bg-vault-elevated px-3 py-1.5 rounded-full border border-vault-border transition">
+                    <span id="persistenceDotHeader" class="w-2 h-2 rounded-full bg-vault-success animate-pulse"></span>
+                    <span id="storageStats">Calcul du stockage...</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= CONTENU PRINCIPAL (GRILLE MÉDIA) ================= -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-12">
+        
+        <!-- ================= INDICATEUR VISUEL DE STOCKAGE ================= -->
+        <section id="storageDashboard" class="mb-6 bg-vault-surface border border-vault-border rounded-2xl p-4 sm:p-5 shadow-lg transition-all">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-vault-elevated border border-vault-border flex items-center justify-center shrink-0">
+                        <i data-lucide="hard-drive" class="w-4 h-4 text-vault-accent"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h2 class="text-sm font-semibold text-white">Espace de stockage du coffre</h2>
+                            <span id="persistenceBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-vault-success/15 text-vault-success border border-vault-success/30">
+                                <i data-lucide="shield-check" class="w-3 h-3"></i>
+                                <span id="persistenceText">Vérification...</span>
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-0.5" id="storageQuotaSubtitle">Analyse de la capacité disponible sur l'appareil...</p>
+                    </div>
+                </div>
+
+                <!-- Volume total utilisé / Restant -->
+                <div class="flex items-baseline sm:flex-col sm:items-end justify-between border-t sm:border-t-0 border-vault-border/60 pt-2 sm:pt-0 mt-1 sm:mt-0">
+                    <div class="text-sm font-bold text-white">
+                        <span id="vaultUsedTotal">0 Mo</span>
+                        <span class="text-xs font-normal text-gray-400">utilisés dans le coffre</span>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        Libre estimé : <span id="deviceFreeSpace" class="text-gray-200 font-medium">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barre de progression segmentée (Photos vs Vidéos vs Système/Libre) -->
+            <div class="w-full h-3 bg-vault-bg rounded-full overflow-hidden border border-vault-border/80 flex p-0.5 gap-0.5" title="Répartition de l'espace de stockage">
+                <div id="barPhotos" style="width: 0%" class="h-full bg-vault-success rounded-l-full transition-all duration-500" title="Photos"></div>
+                <div id="barVideos" style="width: 0%" class="h-full bg-vault-accent transition-all duration-500" title="Vidéos"></div>
+                <div id="barOtherOrigin" style="width: 0%" class="h-full bg-gray-600/60 transition-all duration-500" title="Autres données du site"></div>
+            </div>
+
+            <!-- Légende détaillée Photos / Vidéos / Capacité totale -->
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs">
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-vault-success shrink-0"></span>
+                        <span class="text-gray-400">Photos :</span>
+                        <span id="photosStorageSize" class="font-semibold text-white">0 Mo</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-vault-accent shrink-0"></span>
+                        <span class="text-gray-400">Vidéos :</span>
+                        <span id="videosStorageSize" class="font-semibold text-white">0 Mo</span>
+                    </div>
+                </div>
+
+                <div class="text-gray-400 text-[11px] flex items-center gap-1.5">
+                    <span>Quota navigateur :</span>
+                    <span id="totalQuotaSize" class="text-gray-200 font-medium">—</span>
+                    <span id="usagePercentageBadge" class="px-1.5 py-0.5 rounded bg-vault-elevated text-gray-300 font-mono text-[10px]">0%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- État de chargement -->
+        <div id="loadingState" class="flex flex-col items-center justify-center py-20 text-gray-400">
+            <div class="w-10 h-10 border-4 border-vault-accent border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-sm font-medium">Ouverture de votre coffre permanent...</p>
+        </div>
+
+        <!-- État vide -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center text-center py-16 px-4 max-w-md mx-auto">
+            <div class="w-20 h-20 rounded-3xl bg-vault-surface border border-vault-border flex items-center justify-center mb-5 shadow-inner">
+                <i data-lucide="folder-heart" class="w-10 h-10 text-vault-accent"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Votre coffre est prêt</h2>
+            <p class="text-sm text-gray-400 mb-6 leading-relaxed">
+                Publiez vos photos et vidéos ici. Elles sont enregistrées directement dans la base de données permanente de votre navigateur et ne disparaîtront jamais au rechargement.
+            </p>
+            <button id="emptyPublishBtn" class="bg-vault-accent hover:bg-vault-accentHover text-white font-medium px-6 py-3 rounded-2xl shadow-lg shadow-vault-accent/25 transition active:scale-95 flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                <span>Publier mon premier média</span>
+            </button>
+        </div>
+
+        <!-- Grille adaptative (1 col mobile, 2 cols tablette, 3 cols desktop) -->
+        <div id="mediaGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Les cartes médias seront injectées ici -->
+        </div>
+    </main>
+
+    <!-- ================= BOUTON FLOTTANT MOBILE (THUMB ZONE) ================= -->
+    <button id="openPublishBtnFab" aria-label="Publier un média"
+        class="sm:hidden fixed bottom-6 right-5 z-30 bg-vault-accent hover:bg-vault-accentHover text-white font-semibold px-5 py-4 rounded-2xl shadow-2xl shadow-vault-accent/40 flex items-center gap-2.5 active:scale-90 transition">
+        <i data-lucide="plus" class="w-6 h-6"></i>
+        <span>Publier</span>
+    </button>
+
+    <!-- ================= MODALE / TIROIR DE PUBLICATION ================= -->
+    <div id="publishModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-vault-surface border-t sm:border border-vault-border w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-drawer max-h-[92vh] flex flex-col">
+            
+            <!-- Barre de poignée mobile -->
+            <div class="w-12 h-1.5 bg-vault-border rounded-full mx-auto mt-3 sm:hidden"></div>
+
+            <!-- En-tête modale -->
+            <div class="px-6 py-4 border-b border-vault-border flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="upload-cloud" class="w-5 h-5 text-vault-accent"></i>
+                    Nouvelle publication
+                </h3>
+                <button id="closePublishBtn" class="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-vault-elevated transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Corps formulaire défilable -->
+            <form id="publishForm" class="p-6 overflow-y-auto space-y-5">
+                <!-- Sélecteur de source : Fichier Local vs URL Externe -->
+                <div class="grid grid-cols-2 gap-2 p-1 bg-vault-bg rounded-2xl border border-vault-border">
+                    <button type="button" id="tabLocalFile" class="source-tab py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium bg-vault-elevated text-white shadow transition flex items-center justify-center gap-2">
+                        <i data-lucide="hard-drive" class="w-4 h-4 text-vault-accent"></i>
+                        Fichier local
+                    </button>
+                    <button type="button" id="tabUrlLink" class="source-tab py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium text-gray-400 hover:text-white transition flex items-center justify-center gap-2">
+                        <i data-lucide="link" class="w-4 h-4"></i>
+                        Lien URL
+                    </button>
+                </div>
+
+                <!-- Zone Fichier Local -->
+                <div id="localFileSection" class="space-y-3">
+                    <label for="mediaFileInput" id="dropZone"
+                        class="border-2 border-dashed border-vault-border hover:border-vault-accent bg-vault-bg/60 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition group">
+                        <div class="w-12 h-12 rounded-2xl bg-vault-elevated group-hover:bg-vault-accent/20 flex items-center justify-center mb-3 transition">
+                            <i data-lucide="image-plus" class="w-6 h-6 text-vault-accent"></i>
+                        </div>
+                        <p class="text-sm font-medium text-white">Touchez pour choisir une photo ou vidéo</p>
+                        <p class="text-xs text-gray-400 mt-1">MP4, WebM, JPG, PNG, GIF, WebP (Stocké dans IndexedDB)</p>
+                        <input type="file" id="mediaFileInput" accept="image/*,video/*" class="hidden">
+                    </label>
+                    <div id="fileSelectedBadge" class="hidden items-center justify-between bg-vault-elevated px-4 py-2.5 rounded-xl border border-vault-border text-xs">
+                        <span id="selectedFileName" class="truncate text-white font-medium max-w-[230px]">fichier.mp4</span>
+                        <span id="selectedFileSize" class="text-gray-400 shrink-0">0 Mo</span>
+                    </div>
+                </div>
+
+                <!-- Zone Lien URL Externe -->
+                <div id="urlLinkSection" class="hidden space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1.5">Adresse URL directe du média</label>
+                        <input type="url" id="mediaUrlInput" placeholder="https://exemple.com/ma-photo.jpg ou video.mp4"
+                            class="w-full bg-vault-bg border border-vault-border focus:border-vault-accent rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1.5">Type de média</label>
+                        <select id="urlMediaType" class="w-full bg-vault-bg border border-vault-border focus:border-vault-accent rounded-xl px-4 py-3 text-sm text-white outline-none">
+                            <option value="auto">Détection automatique</option>
+                            <option value="image">Photo / Image</option>
+                            <option value="video">Vidéo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Aperçu avant publication -->
+                <div id="previewWrapper" class="hidden rounded-2xl overflow-hidden bg-black border border-vault-border max-h-52 flex items-center justify-center relative">
+                    <img id="imagePreview" class="hidden max-h-52 w-auto object-contain" alt="Aperçu">
+                    <video id="videoPreview" class="hidden max-h-52 w-full object-contain" controls muted></video>
+                </div>
+
+                <!-- Titre & Description -->
+                <div class="space-y-3">
+                    <div>
+                        <label for="mediaTitle" class="block text-xs font-medium text-gray-300 mb-1.5">Titre (optionnel)</label>
+                        <input type="text" id="mediaTitle" placeholder="Ex: Couché de soleil à Alger..."
+                            class="w-full bg-vault-bg border border-vault-border focus:border-vault-accent rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label for="mediaDesc" class="block text-xs font-medium text-gray-300 mb-1.5">Description ou note souvenir (optionnel)</label>
+                        <textarea id="mediaDesc" rows="2" placeholder="Ajoutez un contexte qui restera gravé avec ce média..."
+                            class="w-full bg-vault-bg border border-vault-border focus:border-vault-accent rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition resize-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Bouton de soumission -->
+                <button type="submit" id="submitMediaBtn"
+                    class="w-full bg-vault-accent hover:bg-vault-accentHover text-white font-semibold py-3.5 rounded-2xl shadow-lg shadow-vault-accent/25 transition active:scale-[0.98] flex items-center justify-center gap-2">
+                    <i data-lucide="lock" class="w-4 h-4"></i>
+                    <span>Enregistrer définitivement</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODALE SAUVEGARDE / EXPORT JSON ================= -->
+    <div id="backupModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-vault-surface border-t sm:border border-vault-border w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-6 animate-drawer space-y-5">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="database" class="w-5 h-5 text-vault-success"></i>
+                    Pérennité & Sauvegarde
+                </h3>
+                <button id="closeBackupBtn" class="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-vault-elevated">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                Vos photos et vidéos sont stockées localement dans <strong>IndexedDB</strong> (haute capacité, persistant après fermeture du navigateur). Pour une sécurité absolue (changement d'appareil ou nettoyage du navigateur), exportez une archive JSON complète.
+            </p>
+
+            <div class="bg-vault-bg rounded-2xl p-4 border border-vault-border flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-400">Médias protégés</p>
+                    <p id="backupTotalCount" class="text-lg font-bold text-white">0 élément</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-400">Taille estimée</p>
+                    <p id="backupTotalSize" class="text-sm font-semibold text-vault-success">0 Mo</p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <button id="exportJsonBtn" class="w-full py-3 px-4 rounded-2xl bg-vault-elevated hover:bg-vault-border text-white font-medium text-sm flex items-center justify-center gap-2 transition active:scale-95">
+                    <i data-lucide="download" class="w-4 h-4 text-vault-accent"></i>
+                    Exporter tout mon coffre (.json)
+                </button>
+
+                <label for="importJsonInput" class="w-full py-3 px-4 rounded-2xl border border-dashed border-vault-border hover:border-vault-accent text-gray-300 hover:text-white font-medium text-sm flex items-center justify-center gap-2 cursor-pointer transition">
+                    <i data-lucide="upload" class="w-4 h-4 text-vault-success"></i>
+                    Restaurer depuis un fichier (.json)
+                    <input type="file" id="importJsonInput" accept=".json,application/json" class="hidden">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODALE DE CONFIRMATION DE SUPPRESSION ================= -->
+    <div id="deleteConfirmModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-vault-surface border border-vault-border w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-drawer text-center space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-vault-danger/15 text-vault-danger flex items-center justify-center mx-auto">
+                <i data-lucide="trash-2" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white">Supprimer ce média ?</h3>
+            <p class="text-xs sm:text-sm text-gray-400">Cette action retirera définitivement ce fichier de votre stockage permanent.</p>
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button id="cancelDeleteBtn" class="py-2.5 rounded-xl bg-vault-elevated hover:bg-vault-border text-white text-sm font-medium transition">
+                    Annuler
+                </button>
+                <button id="confirmDeleteBtn" class="py-2.5 rounded-xl bg-vault-danger hover:bg-red-600 text-white text-sm font-medium transition">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= LIGHTBOX PLEIN ÉCRAN ================= -->
+    <div id="lightboxModal" class="fixed inset-0 z-50 hidden flex-col bg-black/95 backdrop-blur-md">
+        <!-- Barre supérieure Lightbox -->
+        <div class="flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-b from-black/80 to-transparent z-10">
+            <div class="min-w-0 pr-4">
+                <h4 id="lightboxTitle" class="text-sm sm:text-base font-semibold text-white truncate">Titre du média</h4>
+                <p id="lightboxDate" class="text-xs text-gray-400">Date</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <a id="lightboxDownload" download="media" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition" title="Télécharger ce fichier">
+                    <i data-lucide="download" class="w-5 h-5"></i>
+                </a>
+                <button id="closeLightboxBtn" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition" title="Fermer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Conteneur média centré -->
+        <div id="lightboxContent" class="flex-1 flex items-center justify-center p-2 sm:p-6 overflow-hidden">
+            <!-- Image ou Vidéo injectée ici -->
+        </div>
+
+        <!-- Description bas d'écran -->
+        <div id="lightboxFooter" class="px-4 sm:px-6 py-4 bg-gradient-to-t from-black/90 to-transparent text-center">
+            <p id="lightboxDesc" class="text-xs sm:text-sm text-gray-300 max-w-2xl mx-auto"></p>
+        </div>
+    </div>
+
+    <!-- ================= NOTIFICATION TOAST ================= -->
+    <div id="toastContainer" class="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-[90%] max-w-sm"></div>
+
+    <!-- ================= LOGIQUE JAVASCRIPT & INDEXEDDB ================= -->
+    <script>
+        /**
+         * PermaVault - Gestionnaire de médias permanents via IndexedDB
+         * Stocke nativement les Blobs (fichiers locaux) et URLs pour une persistance totale.
+         */
+        const DB_NAME = 'PermaVaultDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'media_items';
+
+        let db = null;
+        let allMedia = [];
+        let currentFilter = 'all';
+        let searchQuery = '';
+        let activeSourceTab = 'local'; // 'local' ou 'url'
+        let itemPendingDeletion = null;
+        let activeObjectUrls = []; // Nettoyage mémoire des URL.createObjectURL
+        let isStoragePersisted = false;
+
+        // Initialisation des icônes Lucide
+        lucide.createIcons();
+
+        // Demande au navigateur de protéger le stockage contre l'éviction automatique
+        async function requestPersistentStorage() {
+            const badge = document.getElementById('persistenceBadge');
+            const textEl = document.getElementById('persistenceText');
+            const dotHeader = document.getElementById('persistenceDotHeader');
+
+            if (navigator.storage && navigator.storage.persist) {
+                try {
+                    // Vérifier d'abord si déjà persistant, sinon demander
+                    let persisted = await navigator.storage.persisted();
+                    if (!persisted) {
+                        persisted = await navigator.storage.persist();
+                    }
+                    isStoragePersisted = persisted;
+
+                    if (persisted) {
+                        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-vault-success/15 text-vault-success border border-vault-success/30';
+                        textEl.textContent = 'Persistance garantie';
+                        dotHeader.className = 'w-2 h-2 rounded-full bg-vault-success animate-pulse';
+                    } else {
+                        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30';
+                        textEl.textContent = 'Stockage standard';
+                        dotHeader.className = 'w-2 h-2 rounded-full bg-amber-400';
+                    }
+                } catch (err) {
+                    console.warn('Persistance non vérifiable:', err);
+                    textEl.textContent = 'IndexedDB local';
+                }
+            } else {
+                textEl.textContent = 'IndexedDB local';
+            }
+        }
+
+        // Ouverture / Création de la base IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                        store.createIndex('createdAt', 'createdAt', { unique: false });
+                        store.createIndex('type', 'type', { unique: false });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    reject('Erreur d’ouverture IndexedDB: ' + event.target.errorCode);
+                };
+            });
+        }
+
+        // Ajouter un élément dans IndexedDB
+        function saveMediaToDB(item) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.add(item);
+
+                request.onsuccess = () => resolve(item);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        // Récupérer tous les éléments depuis IndexedDB
+        function getAllMediaFromDB() {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    // Trier du plus récent au plus ancien
+                    const sorted = request.result.sort((a, b) => b.createdAt - a.createdAt);
+                    resolve(sorted);
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        // Supprimer un élément par ID
+        function deleteMediaFromDB(id) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(id);
+
+                request.onsuccess = () => resolve();
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        // Système de notifications Toast (remplace alert())
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const iconName = type === 'success' ? 'check-circle-2' : (type === 'error' ? 'alert-circle' : 'info');
+            const borderColor = type === 'success' ? 'border-vault-success/50' : (type === 'error' ? 'border-vault-danger/50' : 'border-vault-accent/50');
+            const iconColor = type === 'success' ? 'text-vault-success' : (type === 'error' ? 'text-vault-danger' : 'text-vault-accent');
+
+            toast.className = `bg-vault-surface/95 backdrop-blur-md border ${borderColor} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `
+                <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor} shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        // Formater la taille en Mo/Ko
+        function formatBytes(bytes) {
+            if (bytes === undefined || bytes === null || isNaN(bytes)) return '0 Octet';
+            if (bytes === 0) return '0 Mo';
+            const k = 1024;
+            const sizes = ['Octets', 'Ko', 'Mo', 'Go', 'To'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(i >= 2 ? 2 : 1)) + ' ' + sizes[i];
+        }
+
+        // Formater la date en français
+        function formatDate(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return new Intl.DateTimeFormat('fr-FR', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        }
+
+        // Libérer les anciennes URLs temporaires en mémoire
+        function revokeOldObjectUrls() {
+            activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
+            activeObjectUrls = [];
+        }
+
+        // Mise à jour des compteurs et statistiques de stockage (Photos, Vidéos, Quota appareil)
+        async function updateStats() {
+            const images = allMedia.filter(m => m.type === 'image');
+            const videos = allMedia.filter(m => m.type === 'video');
+
+            const imagesBytes = images.reduce((acc, item) => acc + (item.size || (item.blob ? item.blob.size : 0)), 0);
+            const videosBytes = videos.reduce((acc, item) => acc + (item.size || (item.blob ? item.blob.size : 0)), 0);
+            const vaultTotalBytes = imagesBytes + videosBytes;
+
+            // Compteurs des filtres
+            document.getElementById('countAll').textContent = allMedia.length;
+            document.getElementById('countImage').textContent = images.length;
+            document.getElementById('countVideo').textContent = videos.length;
+
+            // Détails Photos / Vidéos dans le panneau
+            document.getElementById('photosStorageSize').textContent = formatBytes(imagesBytes);
+            document.getElementById('videosStorageSize').textContent = formatBytes(videosBytes);
+            document.getElementById('vaultUsedTotal').textContent = formatBytes(vaultTotalBytes);
+            document.getElementById('backupTotalCount').textContent = `${allMedia.length} élément${allMedia.length > 1 ? 's' : ''}`;
+            document.getElementById('backupTotalSize').textContent = formatBytes(vaultTotalBytes);
+
+            // Estimation de l'espace global via StorageManager API
+            let quota = 0;
+            let originUsage = vaultTotalBytes;
+
+            if (navigator.storage && navigator.storage.estimate) {
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    quota = estimate.quota || 0;
+                    originUsage = Math.max(estimate.usage || 0, vaultTotalBytes);
+                } catch (err) {
+                    console.warn('Impossible d’estimer le quota navigateur:', err);
+                }
+            }
+
+            if (quota > 0) {
+                const freeBytes = Math.max(0, quota - originUsage);
+                const otherOriginBytes = Math.max(0, originUsage - vaultTotalBytes);
+
+                // Calcul des pourcentages pour la barre de progression (avec un minimum visible de 1.5% si > 0)
+                let photoPct = (imagesBytes / quota) * 100;
+                let videoPct = (videosBytes / quota) * 100;
+                let otherPct = (otherOriginBytes / quota) * 100;
+
+                if (imagesBytes > 0 && photoPct < 1.5) photoPct = 1.5;
+                if (videosBytes > 0 && videoPct < 1.5) videoPct = 1.5;
+
+                // S'assurer que la somme ne dépasse pas 100%
+                const sumPct = photoPct + videoPct + otherPct;
+                if (sumPct > 100) {
+                    const scale = 100 / sumPct;
+                    photoPct *= scale;
+                    videoPct *= scale;
+                    otherPct *= scale;
+                }
+
+                document.getElementById('barPhotos').style.width = `${photoPct.toFixed(2)}%`;
+                document.getElementById('barVideos').style.width = `${videoPct.toFixed(2)}%`;
+                document.getElementById('barOtherOrigin').style.width = `${otherPct.toFixed(2)}%`;
+
+                const totalUsedPct = ((originUsage / quota) * 100);
+                const displayPct = totalUsedPct > 0 && totalUsedPct < 0.01 ? '< 0.01%' : `${totalUsedPct.toFixed(2)}%`;
+
+                document.getElementById('deviceFreeSpace').textContent = formatBytes(freeBytes);
+                document.getElementById('totalQuotaSize').textContent = formatBytes(quota);
+                document.getElementById('usagePercentageBadge').textContent = displayPct;
+                document.getElementById('storageQuotaSubtitle').textContent = `${formatBytes(freeBytes)} disponibles sur ${formatBytes(quota)} alloués par votre navigateur`;
+                document.getElementById('storageStats').textContent = `${formatBytes(vaultTotalBytes)} / ${formatBytes(quota)}`;
+            } else {
+                // Fallback si navigator.storage.estimate() n'est pas supporté
+                const total = Math.max(vaultTotalBytes, 1);
+                document.getElementById('barPhotos').style.width = `${((imagesBytes / total) * 100).toFixed(1)}%`;
+                document.getElementById('barVideos').style.width = `${((videosBytes / total) * 100).toFixed(1)}%`;
+                document.getElementById('deviceFreeSpace').textContent = 'Illimité (local)';
+                document.getElementById('totalQuotaSize').textContent = 'Non limité';
+                document.getElementById('usagePercentageBadge').textContent = 'Actif';
+                document.getElementById('storageQuotaSubtitle').textContent = 'Stockage local IndexedDB actif sur cet appareil';
+                document.getElementById('storageStats').textContent = `${allMedia.length} média(s) • ${formatBytes(vaultTotalBytes)}`;
+            }
+        }
+
+        // Rendu de la grille de médias
+        function renderGrid() {
+            revokeOldObjectUrls();
+            const grid = document.getElementById('mediaGrid');
+            const emptyState = document.getElementById('emptyState');
+            const loadingState = document.getElementById('loadingState');
+
+            loadingState.classList.add('hidden');
+
+            // Filtrage par type et recherche
+            const filtered = allMedia.filter(item => {
+                const matchesType = currentFilter === 'all' || item.type === currentFilter;
+                const q = searchQuery.toLowerCase().trim();
+                const matchesSearch = !q ||
+                    (item.title && item.title.toLowerCase().includes(q)) ||
+                    (item.description && item.description.toLowerCase().includes(q));
+                return matchesType && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            emptyState.classList.remove('flex');
+            grid.innerHTML = '';
+
+            filtered.forEach(item => {
+                // Résolution de la source (Blob local ou URL externe)
+                let mediaSrc = item.url;
+                if (item.blob) {
+                    mediaSrc = URL.createObjectURL(item.blob);
+                    activeObjectUrls.push(mediaSrc);
+                }
+
+                const card = document.createElement('article');
+                card.className = 'group bg-vault-surface border border-vault-border hover:border-vault-accent/60 rounded-2xl overflow-hidden flex flex-col shadow-lg transition-all duration-200 hover:-translate-y-0.5';
+
+                const isVideo = item.type === 'video';
+                const displayTitle = item.title || (isVideo ? 'Vidéo sans titre' : 'Photo sans titre');
+
+                card.innerHTML = `
+                    <!-- Zone Média -->
+                    <div class="relative aspect-video bg-black overflow-hidden cursor-pointer media-trigger">
+                        ${isVideo ? `
+                            <video src="${mediaSrc}" class="w-full h-full object-cover" preload="metadata" playsinline></video>
+                            <div class="absolute inset-0 bg-black/30 group-hover:bg-black/15 transition flex items-center justify-center">
+                                <div class="w-12 h-12 rounded-full bg-vault-accent/90 text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition">
+                                    <i data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>
+                                </div>
+                            </div>
+                            <span class="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white text-[11px] font-medium px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                <i data-lucide="video" class="w-3 h-3 text-vault-accent"></i> Vidéo
+                            </span>
+                        ` : `
+                            <img src="${mediaSrc}" alt="${escapeHtml(displayTitle)}" loading="lazy"
+                                onerror="this.src='https://placehold.co/600x400/18191c/8e9297?text=Image+indisponible'"
+                                class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white text-[11px] font-medium px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                <i data-lucide="image" class="w-3 h-3 text-vault-success"></i> Photo
+                            </span>
+                        `}
+
+                        <!-- Bouton Plein écran rapide -->
+                        <button type="button" class="media-trigger absolute bottom-2.5 right-2.5 p-2 rounded-xl bg-black/70 hover:bg-vault-accent text-white opacity-90 sm:opacity-0 group-hover:opacity-100 transition" title="Agrandir">
+                            <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <!-- Informations & Actions -->
+                    <div class="p-4 flex-1 flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-semibold text-white text-sm sm:text-base line-clamp-1">${escapeHtml(displayTitle)}</h3>
+                                <button type="button" data-delete-id="${item.id}" class="delete-btn p-1.5 -mr-1.5 -mt-1 rounded-lg text-gray-400 hover:text-vault-danger hover:bg-vault-danger/10 transition shrink-0" title="Supprimer">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            ${item.description ? `<p class="text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">${escapeHtml(item.description)}</p>` : ''}
+                        </div>
+
+                        <div class="pt-2.5 border-t border-vault-border/60 flex items-center justify-between text-[11px] text-gray-400">
+                            <span class="flex items-center gap-1">
+                                <i data-lucide="clock" class="w-3 h-3"></i>
+                                ${formatDate(item.createdAt)}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-md bg-vault-bg border border-vault-border text-gray-300">
+                                ${item.blob ? formatBytes(item.size) : 'URL'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                // Événements de la carte (Lightbox & Suppression)
+                card.querySelectorAll('.media-trigger').forEach(el => {
+                    el.addEventListener('click', () => openLightbox(item, mediaSrc));
+                });
+
+                card.querySelector('.delete-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    promptDelete(item.id);
+                });
+
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Échapper le HTML pour éviter toute injection XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Chargement initial des données
+        async function refreshMediaList() {
+            try {
+                allMedia = await getAllMediaFromDB();
+                await updateStats();
+                renderGrid();
+            } catch (err) {
+                console.error(err);
+                showToast('Impossible de lire la base locale.', 'error');
+            }
+        }
+
+        // ================= GESTION DE LA MODALE DE PUBLICATION =================
+        const publishModal = document.getElementById('publishModal');
+        const publishForm = document.getElementById('publishForm');
+        const mediaFileInput = document.getElementById('mediaFileInput');
+        const mediaUrlInput = document.getElementById('mediaUrlInput');
+        const previewWrapper = document.getElementById('previewWrapper');
+        const imagePreview = document.getElementById('imagePreview');
+        const videoPreview = document.getElementById('videoPreview');
+
+        function openPublishModal() {
+            publishModal.classList.remove('hidden');
+            publishModal.classList.add('flex');
+        }
+
+        function closePublishModal() {
+            publishModal.classList.add('hidden');
+            publishModal.classList.remove('flex');
+            publishForm.reset();
+            previewWrapper.classList.add('hidden');
+            imagePreview.classList.add('hidden');
+            videoPreview.classList.add('hidden');
+            videoPreview.pause();
+            document.getElementById('fileSelectedBadge').classList.add('hidden');
+        }
+
+        document.getElementById('openPublishBtnHeader').addEventListener('click', openPublishModal);
+        document.getElementById('openPublishBtnFab').addEventListener('click', openPublishModal);
+        document.getElementById('emptyPublishBtn').addEventListener('click', openPublishModal);
+        document.getElementById('closePublishBtn').addEventListener('click', closePublishModal);
+
+        // Basculer entre Fichier Local et Lien URL
+        const tabLocalFile = document.getElementById('tabLocalFile');
+        const tabUrlLink = document.getElementById('tabUrlLink');
+        const localFileSection = document.getElementById('localFileSection');
+        const urlLinkSection = document.getElementById('urlLinkSection');
+
+        tabLocalFile.addEventListener('click', () => {
+            activeSourceTab = 'local';
+            tabLocalFile.className = 'source-tab py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium bg-vault-elevated text-white shadow transition flex items-center justify-center gap-2';
+            tabUrlLink.className = 'source-tab py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium text-gray-400 hover:text-white transition flex items-center justify-center gap-2';
+            localFileSection.classList.remove('hidden');
+            urlLinkSection.classList.add('hidden');
+            previewWrapper.classList.add('hidden');
+        });
+
+        tabUrlLink.addEventListener('click', () => {
+            activeSourceTab = 'url';
+            tabUrlLink.className = 'source-tab py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium bg-vault-elevated text-white shadow transition flex items-center justify-center gap-2';
+            tabLocalFile.className = 'source-tab py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium text-gray-400 hover:text-white transition flex items-center justify-center gap-2';
+            urlLinkSection.classList.remove('hidden');
+            localFileSection.classList.add('hidden');
+            previewWrapper.classList.add('hidden');
+        });
+
+        // Prévisualisation fichier local sélectionné
+        mediaFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('selectedFileName').textContent = file.name;
+            document.getElementById('selectedFileSize').textContent = formatBytes(file.size);
+            const badge = document.getElementById('fileSelectedBadge');
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+
+            // Pré-remplir le titre avec le nom du fichier sans extension si vide
+            const titleInput = document.getElementById('mediaTitle');
+            if (!titleInput.value) {
+                titleInput.value = file.name.replace(/\.[^/.]+$/, "");
+            }
+
+            const tempUrl = URL.createObjectURL(file);
+            previewWrapper.classList.remove('hidden');
+
+            if (file.type.startsWith('video/')) {
+                imagePreview.classList.add('hidden');
+                videoPreview.classList.remove('hidden');
+                videoPreview.src = tempUrl;
+            } else {
+                videoPreview.classList.add('hidden');
+                imagePreview.classList.remove('hidden');
+                imagePreview.src = tempUrl;
+            }
+        });
+
+        // Soumission du formulaire de publication
+        publishForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitMediaBtn');
+            const title = document.getElementById('mediaTitle').value.trim();
+            const description = document.getElementById('mediaDesc').value.trim();
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> <span>Sauvegarde...</span>`;
+
+            try {
+                if (activeSourceTab === 'local') {
+                    const file = mediaFileInput.files[0];
+                    if (!file) {
+                        showToast('Veuillez sélectionner une photo ou une vidéo.', 'error');
+                        return;
+                    }
+
+                    const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+                    const newItem = {
+                        id: crypto.randomUUID(),
+                        type: mediaType,
+                        title: title || file.name,
+                        description: description,
+                        blob: file, // Stockage binaire direct dans IndexedDB
+                        mimeType: file.type,
+                        size: file.size,
+                        createdAt: Date.now()
+                    };
+
+                    await saveMediaToDB(newItem);
+                    showToast('Média enregistré définitivement dans votre coffre !');
+                    closePublishModal();
+                    await refreshMediaList();
+
+                } else {
+                    const url = mediaUrlInput.value.trim();
+                    if (!url) {
+                        showToast('Veuillez saisir un lien URL valide.', 'error');
+                        return;
+                    }
+
+                    const selectedType = document.getElementById('urlMediaType').value;
+                    let detectedType = selectedType;
+                    if (selectedType === 'auto') {
+                        const isVid = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+                        detectedType = isVid ? 'video' : 'image';
+                    }
+
+                    const newItem = {
+                        id: crypto.randomUUID(),
+                        type: detectedType,
+                        title: title || 'Média externe',
+                        description: description,
+                        url: url,
+                        size: 0,
+                        createdAt: Date.now()
+                    };
+
+                    await saveMediaToDB(newItem);
+                    showToast('Lien média sauvegardé de façon permanente !');
+                    closePublishModal();
+                    await refreshMediaList();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erreur lors de la sauvegarde du fichier.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i> <span>Enregistrer définitivement</span>`;
+                lucide.createIcons();
+            }
+        });
+
+        // ================= LIGHTBOX PLEIN ÉCRAN =================
+        const lightboxModal = document.getElementById('lightboxModal');
+        const lightboxContent = document.getElementById('lightboxContent');
+
+        function openLightbox(item, src) {
+            document.getElementById('lightboxTitle').textContent = item.title || 'Sans titre';
+            document.getElementById('lightboxDate').textContent = formatDate(item.createdAt);
+            document.getElementById('lightboxDesc').textContent = item.description || '';
+
+            const dlLink = document.getElementById('lightboxDownload');
+            dlLink.href = src;
+            dlLink.download = (item.title || 'media').replace(/\s+/g, '_');
+
+            lightboxContent.innerHTML = '';
+            if (item.type === 'video') {
+                const video = document.createElement('video');
+                video.src = src;
+                video.controls = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.className = 'max-h-[78vh] max-w-full rounded-xl shadow-2xl outline-none';
+                lightboxContent.appendChild(video);
+            } else {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = item.title || 'Photo';
+                img.className = 'max-h-[78vh] max-w-full object-contain rounded-xl shadow-2xl';
+                lightboxContent.appendChild(img);
+            }
+
+            lightboxModal.classList.remove('hidden');
+            lightboxModal.classList.add('flex');
+        }
+
+        function closeLightbox() {
+            lightboxModal.classList.add('hidden');
+            lightboxModal.classList.remove('flex');
+            lightboxContent.innerHTML = '';
+        }
+
+        document.getElementById('closeLightboxBtn').addEventListener('click', closeLightbox);
+        lightboxContent.addEventListener('click', (e) => {
+            if (e.target === lightboxContent) closeLightbox();
+        });
+
+        // ================= SUPPRESSION =================
+        const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+
+        function promptDelete(id) {
+            itemPendingDeletion = id;
+            deleteConfirmModal.classList.remove('hidden');
+            deleteConfirmModal.classList.add('flex');
+        }
+
+        document.getElementById('cancelDeleteBtn').addEventListener('click', () => {
+            itemPendingDeletion = null;
+            deleteConfirmModal.classList.add('hidden');
+            deleteConfirmModal.classList.remove('flex');
+        });
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if (!itemPendingDeletion) return;
+            try {
+                await deleteMediaFromDB(itemPendingDeletion);
+                showToast('Média supprimé du coffre.', 'info');
+                await refreshMediaList();
+            } catch (err) {
+                showToast('Erreur lors de la suppression.', 'error');
+            } finally {
+                itemPendingDeletion = null;
+                deleteConfirmModal.classList.add('hidden');
+                deleteConfirmModal.classList.remove('flex');
+            }
+        });
+
+        // ================= FILTRAGE & RECHERCHE =================
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.className = 'filter-btn px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-vault-surface text-gray-300 hover:bg-vault-elevated border border-vault-border transition shrink-0 flex items-center gap-1.5';
+                });
+                btn.className = 'filter-btn active px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-white text-black transition shrink-0 flex items-center gap-1.5';
+                currentFilter = btn.dataset.filter;
+                renderGrid();
+            });
+        });
+
+        function handleSearch(val) {
+            searchQuery = val;
+            document.getElementById('searchInputDesktop').value = val;
+            document.getElementById('searchInputMobile').value = val;
+            renderGrid();
+        }
+
+        document.getElementById('searchInputDesktop').addEventListener('input', (e) => handleSearch(e.target.value));
+        document.getElementById('searchInputMobile').addEventListener('input', (e) => handleSearch(e.target.value));
+
+        // ================= EXPORT / IMPORT JSON (SAUVEGARDE ÉTERNELLE) =================
+        const backupModal = document.getElementById('backupModal');
+
+        document.getElementById('openBackupBtn').addEventListener('click', () => {
+            backupModal.classList.remove('hidden');
+            backupModal.classList.add('flex');
+        });
+
+        document.getElementById('openStorageQuickBtn').addEventListener('click', () => {
+            backupModal.classList.remove('hidden');
+            backupModal.classList.add('flex');
+        });
+
+        document.getElementById('closeBackupBtn').addEventListener('click', () => {
+            backupModal.classList.add('hidden');
+            backupModal.classList.remove('flex');
+        });
+
+        // Conversion Blob -> DataURL pour l'export JSON
+        function blobToDataURL(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // Conversion DataURL -> Blob pour l'import JSON
+        async function dataURLToBlob(dataUrl) {
+            const res = await fetch(dataUrl);
+            return await res.blob();
+        }
+
+        document.getElementById('exportJsonBtn').addEventListener('click', async () => {
+            if (allMedia.length === 0) {
+                showToast('Votre coffre est vide, rien à exporter.', 'info');
+                return;
+            }
+
+            const btn = document.getElementById('exportJsonBtn');
+            btn.disabled = true;
+            btn.textContent = 'Préparation de l’archive...';
+
+            try {
+                const exportableItems = await Promise.all(allMedia.map(async (item) => {
+                    const copy = { ...item };
+                    if (copy.blob) {
+                        copy.dataUrl = await blobToDataURL(copy.blob);
+                        delete copy.blob;
+                    }
+                    return copy;
+                }));
+
+                const payload = {
+                    app: 'PermaVault',
+                    exportedAt: new Date().toISOString(),
+                    items: exportableItems
+                };
+
+                const jsonBlob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+                const url = URL.createObjectURL(jsonBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `PermaVault_Sauvegarde_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                showToast('Sauvegarde JSON téléchargée avec succès !');
+            } catch (err) {
+                console.error(err);
+                showToast('Erreur lors de l’exportation.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="download" class="w-4 h-4 text-vault-accent"></i> Exporter tout mon coffre (.json)`;
+                lucide.createIcons();
+            }
+        });
+
+        document.getElementById('importJsonInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const parsed = JSON.parse(text);
+                if (!parsed.items || !Array.isArray(parsed.items)) {
+                    throw new Error('Format invalide');
+                }
+
+                let importedCount = 0;
+                for (const item of parsed.items) {
+                    const exists = allMedia.some(existing => existing.id === item.id);
+                    if (exists) continue;
+
+                    if (item.dataUrl) {
+                        item.blob = await dataURLToBlob(item.dataUrl);
+                        delete item.dataUrl;
+                    }
+                    await saveMediaToDB(item);
+                    importedCount++;
+                }
+
+                await refreshMediaList();
+                showToast(`${importedCount} média(s) restauré(s) dans votre coffre !`);
+                backupModal.classList.add('hidden');
+                backupModal.classList.remove('flex');
+            } catch (err) {
+                console.error(err);
+                showToast('Fichier de sauvegarde invalide ou corrompu.', 'error');
+            } finally {
+                e.target.value = '';
+            }
+        });
+
+        // ================= DÉMARRAGE DE L'APPLICATION =================
+        window.addEventListener('DOMContentLoaded', async () => {
+            await requestPersistentStorage();
+            await initDB();
+            await refreshMediaList();
+        });
+    </script>
+</body>
+</html>
