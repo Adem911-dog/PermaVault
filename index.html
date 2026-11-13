@@ -96,8 +96,9 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
             <!-- Logo & Titre -->
             <div class="flex items-center gap-2.5 shrink-0">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-vault-accent to-indigo-400 flex items-center justify-center shadow-lg shadow-vault-accent/20">
-                    <i data-lucide="infinity" class="w-5 h-5 text-white"></i>
+                <!-- Utilisation de icon-192.png comme logo -->
+                <div class="w-9 h-9 rounded-xl overflow-hidden bg-vault-surface border border-vault-border flex items-center justify-center shadow-lg">
+                    <img src="icon-192.png" alt="Logo PermaVault" id="headerLogoImg" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/5865F2/ffffff?text=Logo'">
                 </div>
                 <div>
                     <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white leading-none">PermaVault</h1>
